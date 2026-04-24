@@ -1,0 +1,64 @@
+services:
+  mysql:
+    image: mariadb:10.5
+    container_name: mysql_db
+    # Comando corrigido para aceitar o plugin de senha e rodar o banco
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password"]
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: wall
+    networks:
+      app_network:
+        ipv4_address: 172.18.0.10
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./../yrprey.sql:/docker-entrypoint-initdb.d/01_yrprey.sql
+
+  php:
+    build:
+      context: .
+      dockerfile: php.Dockerfile
+    container_name: php_fpm
+    depends_on:
+      - mysql
+    networks:
+      app_network:
+        ipv4_address: 172.18.0.11
+    volumes:
+      - ../:/var/www/html
+
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: nginx.Dockerfile
+    container_name: nginx_server
+    ports:
+      - "80:80"
+    depends_on:
+      - php
+    networks:
+      app_network:
+        ipv4_address: 172.18.0.12
+    volumes:
+      - ../:/var/www/html
+
+  adminer:
+    image: adminer:latest
+    container_name: adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - mysql
+    networks:
+      app_network:
+        ipv4_address: 172.18.0.13
+
+networks:
+  app_network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.18.0.0/24
+
+volumes:
+  mysql_data:
